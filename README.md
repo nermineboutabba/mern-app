@@ -1,56 +1,72 @@
-# MERN APP
+# TP2 – Conteneurisation d'une Application MERN avec Docker et Docker Compose
 
 ## Vue d'Ensemble
-Ce projet est une application full-stack qui consiste en un client React et un serveur Node.js utilisant MongoDB comme base de données. Docker est utilisé pour la conteneurisation, et Docker Compose est utilisé pour orchestrer les services.
+Ce projet est une application full-stack **MERN** composée de trois services conteneurisés et orchestrés avec **Docker** et **Docker Compose** :
+- **`client`** (Frontend React) : construit avec `npm run build` et servi sur le port `3000` via `serve`.
+- **`server`** (API REST Express / Node.js) : exposé sur le port `9000` et connecté à MongoDB via `MONGO_URI`.
+- **`mongodb`** (Base de données MongoDB) : persistance assurée par le volume nommé `mern-data` et contrôlée par un `healthcheck`.
 
-## Table des Matières
-- [Technologies Utilisées](#technologies-utilisées)
-- [Variables d'Environnement](#variables-denvironnement)
-- [Configuration de Docker](#configuration-de-docker)
-- [Images Docker](#images-docker)
-- [Docker Compose](#docker-compose)
-- [Comment Exécuter le Projet](#comment-executer-le-projet)
+---
 
-## Technologies Utilisées
-- **Frontend** : React
-- **Backend** : Node.js, Express
-- **Base de Données** : MongoDB
-- **Conteneurisation** : Docker, Docker Compose
+## Architecture et Configuration
+- **Réseau Docker** : `mern-network` (driver `bridge`) permettant la résolution DNS par nom de service (`mongodb`, `server`, `client`).
+- **Volume persistant** : `mern-data` monté sur `/data/db` dans le conteneur `mongodb`.
+- **Variables d'environnement** (voir `.env.example`) :
+  - `MONGO_URI=mongodb://mongodb:27017/mern`
+  - `REACT_APP_API_URL=http://localhost:9000`
 
-## Variables d'Environnement
-Les variables d'environnement suivantes sont utilisées dans l'application :
+---
 
-- **REACT_APP_API_URL** : Cette variable contient l'URL de base pour le serveur API. Elle est utilisée dans le client React pour faire des requêtes au serveur.
-- **MONGO_URI** : L'URI de connexion à MongoDB utilisée par le serveur pour se connecter à l'instance MongoDB.
+## Commandes Utiles (Construction, Démarrage, Diagnostic et Arrêt)
 
-## Configuration de Docker
-Ce projet comprend des Dockerfiles pour le client et le serveur, qui facilitent la construction et l'exécution des services dans des conteneurs isolés. Les configurations incluent :
+### 1. Construction manuelle des images
+```bash
+# Construire l'image du serveur
+cd server
+docker build -t mern-server .
 
-- **Client** : Un environnement Node.js pour construire l'application React. Les dépendances sont installées et l'application est construite pour une utilisation en production. Un serveur HTTP simple peut être utilisé pour servir l'application construite.
-  
-- **Serveur** : Un environnement Node.js qui installe les dépendances nécessaires et configure l'application pour écouter sur un port spécifique.
+# Construire l'image du client
+cd ../client
+docker build -t mern-client .
+```
 
-## Images Docker
-Les images Docker créées pour ce projet sont les suivantes :
+### 2. Démarrage avec Docker Compose
+```bash
+# Construire et lancer tous les services en arrière-plan
+docker compose up -d --build
+```
+- **Interface React (Client)** : [http://localhost:3000](http://localhost:3000)
+- **API Express (Serveur)** : [http://localhost:9000](http://localhost:9000)
 
-- **Image du Client** : `node:lts-alpine`
-- **Image du Serveur** : `node:lts-alpine`
-- **Image de la Base de Données** : `mongo:latest`
+### 3. Diagnostic et surveillance
+```bash
+# Vérifier l'état des conteneurs et du healthcheck
+docker compose ps
 
-Ces images sont spécifiées dans les Dockerfiles respectifs et sont utilisées lors de la construction et du déploiement des services.
+# Consulter les 50 dernières lignes de journaux du serveur
+docker compose logs --tail=50 server
 
-## Docker Compose
-Docker Compose est utilisé pour gérer les différents services de l'application, y compris le client, le serveur et MongoDB. Les services sont interconnectés, ce qui permet une communication fluide entre le client et le serveur. Le fichier de configuration spécifie les images, les ports exposés, ainsi que les variables d'environnement nécessaires pour chaque service.
+# Suivre les journaux de tous les services en temps réel
+docker compose logs -f
+```
 
-## Comment Exécuter le Projet
-1. Assurez-vous d'avoir Docker et Docker Compose installés sur votre machine.
-2. Clonez ce dépôt sur votre machine locale.
-3. Accédez au répertoire du projet dans votre terminal.
-4. Construisez et démarrez l'application en utilisant Docker Compose :
+### 4. Arrêt des services
+```bash
+# Arrêter et supprimer les conteneurs (tout en conservant le volume mern-data)
+docker compose down
+```
 
-   ```bash
-   docker-compose up --build
-   ```
+---
 
-5. Accédez au client à [http://localhost:3000](http://localhost:3000).
+## Étapes Réalisées, Tests et Difficultés Résolues
 
+### Étapes réalisées et tests effectués
+1. Création des fichiers `Dockerfile` et `.dockerignore` pour `server` et `client`.
+2. Déploiement manuel sur le réseau `mern-network` avec le volume `mern-data`.
+3. Orchestration complète via `docker-compose.yml` avec `healthcheck` sur MongoDB (`mongosh`) et dépendance `condition: service_healthy`.
+4. Test fonctionnel de bout en bout (ajout, affichage, modification et suppression d'employés depuis React vers MongoDB) et vérification de la persistance des données après `docker compose down` puis `docker compose up -d`.
+
+### Difficultés résolues
+- **Script `npm start` manquant dans `server/package.json`** : ajout de `"start": "node server.js"` dans la section `scripts`.
+- **Communication navigateur ↔ API vs réseau interne Docker** : configuration de `REACT_APP_API_URL=http://localhost:9000` pour le navigateur client et de `MONGO_URI=mongodb://mongodb:27017/mern` pour la communication interne entre conteneurs.
+- **Ordre de démarrage entre `server` et `mongodb`** : ajout d'un `healthcheck` sur `mongodb` et de `condition: service_healthy` dans `depends_on` pour éviter que l'API ne démarre avant que MongoDB ne soit prêt.
