@@ -19,4 +19,5 @@ const App = () => {
 }
 
 export default App
-// TP3: Selective CI trigger for client
+// TP3: Selective GitLab CI trigger for client (local runner)
+
