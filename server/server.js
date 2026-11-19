@@ -22,7 +22,8 @@ console.log("the server is running");
 app.listen(port, () => {
   console.log("Server is running on port: " + port);
 });
-// TP3: Selective GitLab CI trigger for server (run 2)
+// TP3: Selective GitHub Actions & GitLab CI trigger for server
+
 
 
 
